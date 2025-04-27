@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import { DeleteIcon, ViewIcon } from '@chakra-ui/icons';
+import { DeleteIcon, ViewIcon, EditIcon } from '@chakra-ui/icons';
 import { Button, Menu, MenuButton, MenuItem, MenuList, Text, useDisclosure } from '@chakra-ui/react';
 import { getApi } from 'services/api';
 import { HasAccess } from '../../../redux/accessUtils';
 import CommonCheckTable from '../../../components/reactTable/checktable';
 import { SearchIcon } from "@chakra-ui/icons";
+import Edit from './Edit';
 import { CiMenuKebab } from 'react-icons/ci';
 import { Link, useNavigate } from 'react-router-dom';
 import MeetingAdvanceSearch from './components/MeetingAdvanceSearch';
 import AddMeeting from './components/Addmeeting';
 import CommonDeleteModel from 'components/commonDeleteModel';
-import { deleteManyApi } from 'services/api';
+import { deleteManyApi, deleteApi } from 'services/api';
 import { toast } from 'react-toastify';
 import { fetchMeetingData } from '../../../redux/slices/meetingSlice';
 import { useDispatch } from 'react-redux';
@@ -20,6 +21,9 @@ const Index = () => {
     const navigate = useNavigate()
     const [action, setAction] = useState(false);
     const { isOpen, onOpen, onClose } = useDisclosure();
+    const [meetingData, setMeetingData] = useState([]);
+    const [edit, setEdit] = useState(false);
+    const [selectedId, setSelectedId] = useState();
     const [selectedValues, setSelectedValues] = useState([]);
     const [advanceSearch, setAdvanceSearch] = useState(false);
     const [getTagValuesOutSide, setGetTagValuesOutside] = useState([]);
@@ -41,10 +45,8 @@ const Index = () => {
                 <Menu isLazy  >
                     <MenuButton><CiMenuKebab /></MenuButton>
                     <MenuList minW={'fit-content'} transform={"translate(1520px, 173px);"}>
-
-                        {permission?.view && <MenuItem py={2.5} color={'green'}
-                            onClick={() => navigate(`/metting/${row?.values._id}`)}
-                            icon={<ViewIcon fontSize={15} />}>View</MenuItem>}
+                        {permission?.update && <MenuItem py={2.5} onClick={() => { setEdit(true); setSelectedId(row?.values?._id); }} icon={<EditIcon fontSize={15} mb={1} />}>Edit</MenuItem>}  
+                        {permission?.view && <MenuItem py={2.5} color={'green'} onClick={() => navigate(`/metting/${row?.values._id}`)} icon={<ViewIcon fontSize={15} />}>View</MenuItem>}
                         {permission?.delete && <MenuItem py={2.5} color={'red'} onClick={() => { setDeleteMany(true); setSelectedValues([row?.values?._id]); }} icon={<DeleteIcon fontSize={15} />}>Delete</MenuItem>}
                     </MenuList>
                 </Menu>
@@ -72,7 +74,19 @@ const Index = () => {
         },
         { Header: "Date & Time", accessor: "dateTime", },
         { Header: "Time Stamp", accessor: "timestamp", },
-        { Header: "Create By", accessor: "createdByName", },
+        {
+            Header: "Created By",
+            accessor: "createBy",
+            cell: (cell) => {
+                const firstName = cell?.value?.firstName || '';
+                const lastName = cell?.value?.lastName || '';
+                return (
+                    <Text fontSize="sm" fontWeight="600">
+                        {`${firstName} ${lastName}`.trim() || ' - '}
+                    </Text>
+                );
+            },
+        },
         ...(permission?.update || permission?.view || permission?.delete ? [actionHeader] : [])
 
     ];
@@ -91,7 +105,7 @@ const Index = () => {
     const handleDeleteMeeting = async (ids) => {
         try {
             setIsLoding(true)
-            let response = await deleteManyApi('api/meeting/deleteMany', ids)
+            let response = await deleteManyApi('api/meeting/deleteMany/', ids)
             if (response.status === 200) {
                 setSelectedValues([])
                 setDeleteMany(false)
@@ -162,6 +176,7 @@ const Index = () => {
 
             {/* Delete model */}
             <CommonDeleteModel isOpen={deleteMany} onClose={() => setDeleteMany(false)} type='Meetings' handleDeleteData={handleDeleteMeeting} ids={selectedValues} />
+            {edit && <Edit isOpen={edit} size={"lg"} meetingData={meetingData[0]} selectedId={selectedId} setSelectedId={setSelectedId} onClose={setEdit} setAction={setAction} moduleId={meetingData?.[0]?._id} />}
         </div>
     )
 }
